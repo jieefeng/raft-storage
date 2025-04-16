@@ -25,6 +25,9 @@ public class DefaultLogModule implements LogModule {
     public final static byte[] LAST_INDEX_KEY = "LAST_INDEX_KEY".getBytes();
     private ReentrantLock lock = new ReentrantLock();
 
+    // volatile 保证可见性和禁止指令重排序
+    private static volatile DefaultLogModule instance;
+
     private DefaultLogModule() {
         if (dbDir == null) {
             dbDir = "./rocksDB-raft/" + System.getProperty("serverPort");
@@ -162,5 +165,16 @@ public class DefaultLogModule implements LogModule {
         } catch (RocksDBException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static DefaultLogModule getInstance() {
+        if(instance == null){
+            synchronized (DefaultLogModule.class){
+                if(instance == null){
+                    instance = new DefaultLogModule();
+                }
+            }
+        }
+        return  instance;
     }
 }

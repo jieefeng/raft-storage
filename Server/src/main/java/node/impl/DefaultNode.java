@@ -2,6 +2,7 @@ package node.impl;
 
 
 import entity.*;
+import log.impl.DefaultLogModule;
 import node.Node;
 import common.status.NodeStatus;
 import consensus.impl.DefaultConsensus;
@@ -14,7 +15,9 @@ import rpc.Request;
 import rpc.RpcClient;
 import rpc.impl.DefaultRpcClient;
 import rpc.impl.DefaultRpcServiceImpl;
+import stateMachine.DefaultStateMachine;
 import stateMachine.StateMachine;
+import stateMachine.StateMachineSaveType;
 import threadpool.RaftThreadPool;
 
 import java.util.*;
@@ -56,6 +59,8 @@ public class DefaultNode implements Node {
     public PeerSet peerSet;
 
     volatile boolean running = false;
+
+    private NodeConfig config;
 
     /* ============ 节点当前状态 ============= */
 
@@ -114,7 +119,6 @@ public class DefaultNode implements Node {
 
 
     public StateMachine stateMachine;
-
 
     /* ========== 状态机模块 ================== */
 

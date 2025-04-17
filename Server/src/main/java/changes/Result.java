@@ -1,10 +1,12 @@
 package changes;
 
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
+@Builder
 public class Result {
 
     public static final int FAIL = 0;
@@ -17,11 +19,6 @@ public class Result {
     public Result() {
     }
 
-    public Result(Builder builder) {
-        setStatus(builder.status);
-        setLeaderHint(builder.leaderHint);
-    }
-
     @Override
     public String toString() {
         return "Result{" +
@@ -29,11 +26,6 @@ public class Result {
             ", leaderHint='" + leaderHint + '\'' +
             '}';
     }
-
-    public static Builder newBuilder() {
-        return new Builder();
-    }
-
     @Getter
     public enum Status {
         FAIL(0), SUCCESS(1);
@@ -51,29 +43,6 @@ public class Result {
                 }
             }
             return null;
-        }
-    }
-
-    public static final class Builder {
-
-        private int status;
-        private String leaderHint;
-
-        private Builder() {
-        }
-
-        public Builder status(int val) {
-            status = val;
-            return this;
-        }
-
-        public Builder leaderHint(String val) {
-            leaderHint = val;
-            return this;
-        }
-
-        public Result build() {
-            return new Result(this);
         }
     }
 }

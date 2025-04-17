@@ -1,6 +1,7 @@
 package node.impl;
 
 
+import changes.ClusterMembershipChangesImpl;
 import entity.*;
 import log.impl.DefaultLogModule;
 import node.Node;
@@ -15,7 +16,6 @@ import rpc.Request;
 import rpc.RpcClient;
 import rpc.impl.DefaultRpcClient;
 import rpc.impl.DefaultRpcServiceImpl;
-import stateMachine.DefaultStateMachine;
 import stateMachine.StateMachine;
 import stateMachine.StateMachineSaveType;
 import threadpool.RaftThreadPool;
@@ -62,6 +62,8 @@ public class DefaultNode implements Node {
 
     private NodeConfig config;
 
+    private static volatile DefaultNode instance;
+
     /* ============ 节点当前状态 ============= */
 
 
@@ -107,7 +109,7 @@ public class DefaultNode implements Node {
 
     /* ========== 一致性模块 ================== */
 
-    DefaultConsensus defaultConsensus;
+    DefaultConsensus consensus;
 
     /* ========== 一致性模块 ================== */
 
@@ -120,12 +122,39 @@ public class DefaultNode implements Node {
 
     public StateMachine stateMachine;
 
+
     /* ========== 状态机模块 ================== */
+
+
+    /* ========== 集群模块 ================== */
+
+
+    private ClusterMembershipChangesImpl delegate;
+    private Runnable electionTask = new ElectionTask();
+
+
+    /* ========== 集群模块 ================== */
 
 
     @Override
     public void init() throws Throwable {
+        running = true;
+        rpcServer.init();
+        rpcClient.init();
 
+        consensus = new DefaultConsensus(this);
+        delegate = new ClusterMembershipChangesImpl(this);
+
+        RaftThreadPool.scheduleWithFixedDelay(heartBeatTask, 500);
+        RaftThreadPool.scheduleAtFixedRate(electionTask, 6000, 500);
+//        RaftThreadPool.execute(replicationFailQueueConsumer);
+
+        LogEntry logEntry = logModule.getLast();
+        if (logEntry != null) {
+            currentTerm = logEntry.getTerm();
+        }
+
+        log.info("start success, selfId : {} ", peerSet.getSelf());
     }
 
     @Override
@@ -153,12 +182,12 @@ public class DefaultNode implements Node {
 
     @Override
     public RvoteResult handlerRequestVote(RvoteParam param) {
-        return defaultConsensus.requestVote(param);
+        return consensus.requestVote(param);
     }
 
     @Override
     public AentryResult handlerAppendEntries(AentryParam param) {
-        return defaultConsensus.appendEntries(param);
+        return consensus.appendEntries(param);
     }
 
     @Override
@@ -590,5 +619,16 @@ public class DefaultNode implements Node {
             entry = LogEntry.builder().index(0L).term(0).command(null).build();
         }
         return entry;
+    }
+
+    public static DefaultNode getInstance(){
+        if(instance == null){
+            synchronized (DefaultNode.class){
+                if(instance == null){
+                    instance = new DefaultNode();
+                }
+            }
+        }
+        return instance;
     }
 }

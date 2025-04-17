@@ -180,26 +180,20 @@ public class DefaultConsensus implements Consensus {
                 result.setSuccess(true);
             }
 
-            // 下一个需要提交的日志的索引（如有）
-            long nextCommit = node.getCommitIndex() + 1;
+            // 更新commitIndex
+            long newCommitIndex = Math.min(param.getLeaderCommit(), node.getLogModule().getLastIndex());
+            node.setCommitIndex(newCommitIndex);
 
-            //如果 leaderCommit > commitIndex，令 commitIndex 等于 leaderCommit 和 新日志条目索引值中较小的一个
-            if (param.getLeaderCommit() > node.getCommitIndex()) {
-                int commitIndex = (int) Math.min(param.getLeaderCommit(), node.getLogModule().getLastIndex());
-                node.setCommitIndex(commitIndex);
-                node.setLastApplied(commitIndex);
+            // 应用未提交的日志
+            // 这里是逐个更新lastapplyIndex（有个地方是批量更新）
+            for (long i = node.getLastApplied() + 1; i <= node.getCommitIndex(); i++) {
+                LogEntry entry = node.getLogModule().read(i);
+                node.getStateMachine().apply(entry);
+                node.setLastApplied(i); // 逐步更新lastApplied
             }
-
-            while (nextCommit <= node.getCommitIndex()){
-                // 提交之前的日志
-                node.stateMachine.apply(node.logModule.read(nextCommit));
-                nextCommit++;
-            }
-
             result.setTerm(node.getCurrentTerm());
 
             node.status = NodeStatus.FOLLOWER;
-            // TODO, 是否应当在成功回复之后, 才正式提交? 防止 leader "等待回复"过程中 挂掉.
             return result;
         } finally {
             appendLock.unlock();
@@ -222,16 +216,23 @@ public class DefaultConsensus implements Consensus {
         while (nextApplied <= node.getCommitIndex()) {
             LogEntry entry = node.logModule.read(nextApplied);
             if (entry != null) {
-                node.stateMachine.apply(entry);
-                nextApplied++;
+                try {
+                    node.stateMachine.apply(entry);
+                    nextApplied++;
+                } catch (Exception e) {
+                    // 应用失败，中止处理，下次重试
+                    break;
+                }
             } else {
-                break; // 日志缺失，需等待Leader修复
+                // 日志缺失，不能贸然认为应用成功，直接退出
+                break;
             }
         }
         //根据Raft的正确实现，`lastApplied`应该在所有日志成功应用后才更新。
         //如果应用过程中失败，`lastApplied`仍保持原值，下次会从该值+1继续尝试应用，确保不会遗漏或重复。
         //所有日志应用完成后更新
-        node.setLastApplied(node.getCommitIndex());
+        //(如果失败）只更新已经成功应用的部分
+        node.setLastApplied(nextApplied - 1);
         return AentryResult.newBuilder().term(node.getCurrentTerm()).success(true).build();
     }
 

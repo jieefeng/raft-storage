@@ -1,13 +1,13 @@
-<h1 id="pmDdi">Raft论文地址</h1>
+# Raft论文地址
 Raft中文翻译：[https://www.cnblogs.com/ki11-9/articles/16586010.html#%E6%91%98%E8%A6%81](https://www.cnblogs.com/ki11-9/articles/16586010.html#%E6%91%98%E8%A6%81)和[https://github.com/maemual/raft-zh_cn/blob/master/raft-zh_cn.md](https://github.com/maemual/raft-zh_cn/blob/master/raft-zh_cn.md)
 
-<h1 id="z8PNb">选举</h1>
-<h2 id="Bvbnr">选举接收者</h2>
-<h3 id="TQPWO">Raft - RequestVote RPC 处理流程梳理</h3>
-<h4 id="fyOUL">方法：`requestVote(RvoteParam param)`</h4>
+# 选举
+## 选举接收者
+### Raft - RequestVote RPC 处理流程梳理
+#### 方法：`requestVote(RvoteParam param)`
 该方法用于实现 Raft 协议中的请求投票逻辑，由 **接收者节点（Follower）** 执行，响应来自候选人的投票请求。
 
-<h4 id="Ivh91">总体流程逻辑：</h4>
+#### 总体流程逻辑：
 1. **加锁防并发**
     - 使用 `voteLock.tryLock()` 防止多个投票请求并发执行。
     - 若加锁失败，立即拒绝投票（`voteGranted = false`）。
@@ -33,7 +33,7 @@ Raft中文翻译：[https://www.cnblogs.com/ki11-9/articles/16586010.html#%E6%91
         * 记录 leader 为该候选人
     - 最终返回 `voteGranted = true`。
 
-<h4 id="sXtoO">关键判断总结：</h4>
+#### 关键判断总结：
 | 判断项 | 条件 | 说明 |
 | --- | --- | --- |
 | 任期是否过时 | `param.term < currentTerm` | 否决 |
@@ -45,35 +45,29 @@ Raft中文翻译：[https://www.cnblogs.com/ki11-9/articles/16586010.html#%E6%91
 
 ---
 
-<h4 id="Wvlsi">小贴士</h4>
+#### 小贴士
 + 日志新旧判断遵循 Raft 协议 5.4 节：“日志越新越可信”。
 
-<h2 id="duHqg">选举发起者</h2>
-<h3 id="dP6ZW"><font style="color:rgb(64, 64, 64);">Raft 选举发起流程总结（基于代码分析）</font></h3>
----
-
-<h4 id="mQovi">**<font style="color:rgb(64, 64, 64);">1. 选举触发条件</font>**</h4>
+## 选举发起者
+### <font style="color:rgb(64, 64, 64);">Raft 选举发起流程总结（基于代码分析）</font>
+#### **<font style="color:rgb(64, 64, 64);">1. 选举触发条件</font>**
 + **<font style="color:rgb(64, 64, 64);">心跳超时</font>**<font style="color:rgb(64, 64, 64);">：当节点（Follower/Candidate）超过</font><font style="color:rgb(64, 64, 64);"> </font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">electionTimeout</font>**`<font style="color:rgb(64, 64, 64);"> </font><font style="color:rgb(64, 64, 64);">未收到 Leader 的心跳（</font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">preHeartBeatTime</font>**`<font style="color:rgb(64, 64, 64);"> </font><font style="color:rgb(64, 64, 64);">未更新）。</font>
 + **<font style="color:rgb(64, 64, 64);">随机化选举超时</font>**<font style="color:rgb(64, 64, 64);">：</font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">electionTimeout = base + 随机时间（150-350ms）</font>**`<font style="color:rgb(64, 64, 64);">，避免多个节点同时发起选举。</font>
 
----
-
-<h4 id="yCSaQ">**<font style="color:rgb(64, 64, 64);">2. 候选人（Candidate）阶段</font>**</h4>
+#### **<font style="color:rgb(64, 64, 64);">2. 候选人（Candidate）阶段</font>**
 1. **<font style="color:rgb(64, 64, 64);">状态转换</font>**<font style="color:rgb(64, 64, 64);">：</font>
     - <font style="color:rgb(64, 64, 64);">节点状态从</font><font style="color:rgb(64, 64, 64);"> </font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">FOLLOWER</font>**`<font style="color:rgb(64, 64, 64);"> </font><font style="color:rgb(64, 64, 64);">变为</font><font style="color:rgb(64, 64, 64);"> </font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">CANDIDATE</font>**`<font style="color:rgb(64, 64, 64);">。</font>
     - **<font style="color:rgb(64, 64, 64);">任期号自增</font>**<font style="color:rgb(64, 64, 64);">：</font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">currentTerm++</font>**`<font style="color:rgb(64, 64, 64);">。</font>
     - **<font style="color:rgb(64, 64, 64);">自投票</font>**<font style="color:rgb(64, 64, 64);">：</font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">votedFor = selfAddress</font>**`<font style="color:rgb(64, 64, 64);">。</font>
     - **<font style="color:rgb(64, 64, 64);">重置选举计时器</font>**<font style="color:rgb(64, 64, 64);">：更新</font><font style="color:rgb(64, 64, 64);"> </font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">preElectionTime</font>**`<font style="color:rgb(64, 64, 64);">。</font>
-2. **<font style="color:rgb(64, 64, 64);">发起投票请求</font>**<font style="color:rgb(64, 64, 64);">：</font>
+2. **<font style="color:rgb(64, 64, 64);">发起投票请求：</font>**
     - <font style="color:rgb(64, 64, 64);">向所有其他节点并行发送</font><font style="color:rgb(64, 64, 64);"> </font>**<font style="color:rgb(64, 64, 64);">RequestVote RPC</font>**<font style="color:rgb(64, 64, 64);">。</font>
     - <font style="color:rgb(64, 64, 64);">RPC 参数包含：</font>
         * `**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">term</font>**`<font style="color:rgb(64, 64, 64);">：当前任期。</font>
         * `**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">candidateId</font>**`<font style="color:rgb(64, 64, 64);">：自身地址。</font>
-        * `**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">lastLogIndex</font>**`<font style="color:rgb(64, 64, 64);"> </font><font style="color:rgb(64, 64, 64);">和</font><font style="color:rgb(64, 64, 64);"> </font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">lastLogTerm</font>**`<font style="color:rgb(64, 64, 64);">：本地最新日志的索引和任期（用于日志新旧比较）。</font>
+        * `**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">lastLogIndex</font>**`<font style="color:rgb(64, 64, 64);"> 和 </font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">lastLogTerm</font>**`<font style="color:rgb(64, 64, 64);">：本地最新日志的索引和任期（用于日志新旧比较）。</font>
 
----
-
-<h4 id="ZIaML">**<font style="color:rgb(64, 64, 64);">3. 投票处理逻辑</font>**</h4>
+#### **<font style="color:rgb(64, 64, 64);">3. 投票处理逻辑</font>**
 1. **<font style="color:rgb(64, 64, 64);">等待投票结果</font>**<font style="color:rgb(64, 64, 64);">：</font>
     - <font style="color:rgb(64, 64, 64);">使用</font><font style="color:rgb(64, 64, 64);"> </font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">CountDownLatch</font>**`<font style="color:rgb(64, 64, 64);"> </font><font style="color:rgb(64, 64, 64);">等待所有 RPC 响应，超时时间为 3.5 秒。</font>
     - <font style="color:rgb(64, 64, 64);">统计成功获得的投票数（需满足</font><font style="color:rgb(64, 64, 64);"> </font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">投票数 > 总节点数/2</font>**`<font style="color:rgb(64, 64, 64);">）。</font>
@@ -88,7 +82,7 @@ Raft中文翻译：[https://www.cnblogs.com/ki11-9/articles/16586010.html#%E6%91
 
 ---
 
-<h4 id="A3yKH">**<font style="color:rgb(64, 64, 64);">4. Leader 初始化流程</font>**</h4>
+#### **<font style="color:rgb(64, 64, 64);">4. Leader 初始化流程</font>**
 1. **<font style="color:rgb(64, 64, 64);">日志复制准备</font>**<font style="color:rgb(64, 64, 64);">：</font>
     - <font style="color:rgb(64, 64, 64);">初始化</font><font style="color:rgb(64, 64, 64);"> </font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">nextIndex[]</font>**`<font style="color:rgb(64, 64, 64);"> </font><font style="color:rgb(64, 64, 64);">和</font><font style="color:rgb(64, 64, 64);"> </font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">matchIndex[]</font>**`<font style="color:rgb(64, 64, 64);">：</font>
         * `**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">nextIndex[peer] = lastLogIndex + 1</font>**`<font style="color:rgb(64, 64, 64);">（预期从下一个日志开始同步）。</font>
@@ -102,7 +96,7 @@ Raft中文翻译：[https://www.cnblogs.com/ki11-9/articles/16586010.html#%E6%91
 
 ---
 
-<h4 id="tv2wv">**<font style="color:rgb(64, 64, 64);">5. 异常与降级处理</font>**</h4>
+#### **<font style="color:rgb(64, 64, 64);">5. 异常与降级处理</font>**
 + **<font style="color:rgb(64, 64, 64);">收到更高任期的 RPC</font>**<font style="color:rgb(64, 64, 64);">：</font>
     - <font style="color:rgb(64, 64, 64);">若在投票或日志复制过程中收到更高任期的请求（如来自新 Leader 的 AppendEntries），立即退化为 Follower。</font>
 + **<font style="color:rgb(64, 64, 64);">选举超时</font>**<font style="color:rgb(64, 64, 64);">：</font>
@@ -110,7 +104,7 @@ Raft中文翻译：[https://www.cnblogs.com/ki11-9/articles/16586010.html#%E6%91
 
 ---
 
-<h4 id="XlZHg">**<font style="color:rgb(64, 64, 64);">6. 关键实现细节</font>**</h4>
+#### **<font style="color:rgb(64, 64, 64);">6. 关键实现细节</font>**
 + **<font style="color:rgb(64, 64, 64);">线程池与异步 RPC</font>**<font style="color:rgb(64, 64, 64);">：</font>
     - <font style="color:rgb(64, 64, 64);">使用</font><font style="color:rgb(64, 64, 64);"> </font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">RaftThreadPool</font>**`<font style="color:rgb(64, 64, 64);"> </font><font style="color:rgb(64, 64, 64);">并行发送 RPC，提高选举效率。</font>
 + **<font style="color:rgb(64, 64, 64);">日志匹配规则</font>**<font style="color:rgb(64, 64, 64);">：</font>
@@ -120,7 +114,7 @@ Raft中文翻译：[https://www.cnblogs.com/ki11-9/articles/16586010.html#%E6%91
 
 ---
 
-<h4 id="ob5rh">**<font style="color:rgb(64, 64, 64);">7. 代码中的 Raft 协议对照</font>**</h4>
+#### **<font style="color:rgb(64, 64, 64);">7. 代码中的 Raft 协议对照</font>**
 + **<font style="color:rgb(64, 64, 64);">选举限制</font>**<font style="color:rgb(64, 64, 64);">：</font>
     - <font style="color:rgb(64, 64, 64);">仅当候选人日志比跟随者新时，才会获得投票（通过</font><font style="color:rgb(64, 64, 64);"> </font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">lastLogTerm</font>**`<font style="color:rgb(64, 64, 64);"> </font><font style="color:rgb(64, 64, 64);">比较）。</font>
 + **<font style="color:rgb(64, 64, 64);">Leader 心跳</font>**<font style="color:rgb(64, 64, 64);">：</font>
@@ -128,7 +122,7 @@ Raft中文翻译：[https://www.cnblogs.com/ki11-9/articles/16586010.html#%E6%91
 + **<font style="color:rgb(64, 64, 64);">状态机安全性</font>**<font style="color:rgb(64, 64, 64);">：</font>
     - <font style="color:rgb(64, 64, 64);">仅提交当前任期的日志（</font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">log[N].term == currentTerm</font>**`<font style="color:rgb(64, 64, 64);"> 时更新 </font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">commitIndex</font>**`<font style="color:rgb(64, 64, 64);">）。</font>
 
-<h4 id="z7zvG">8.简易流程图</h4>
+#### 8.简易流程图
 ```plain
 [心跳超时]  
    → [成为 Candidate]  
@@ -138,129 +132,26 @@ Raft中文翻译：[https://www.cnblogs.com/ki11-9/articles/16586010.html#%E6%91
       → 失败 → [重新选举]
 ```
 
-<h3 id="FWwHq"><font style="color:#080808;background-color:#ffffff;">becomeLeaderToDoThing()</font></h3>
-<h4 id="GKY9n">初始化leader的nextIndex和mtachIndex</h4>
-<h4 id="ikQCp"><font style="color:rgb(0, 0, 0);">对leader的commitIndex进行调整，找出之前领导者已经提交过的部分。假设存在 N 满足</font>`<font style="color:rgb(192, 52, 29);background-color:rgb(251, 229, 225);">N > commitIndex</font>`<font style="color:rgb(0, 0, 0);">，使得大多数follower的 </font>`<font style="color:rgb(192, 52, 29);background-color:rgb(251, 229, 225);">matchIndex[i] ≥ N</font>`<font style="color:rgb(0, 0, 0);">以及</font>`<font style="color:rgb(192, 52, 29);background-color:rgb(251, 229, 225);">log[N].term == currentTerm</font>`<font style="color:rgb(0, 0, 0);"> 成立，则令 </font>`<font style="color:rgb(192, 52, 29);background-color:rgb(251, 229, 225);">commitIndex = N</font>`<font style="color:rgb(0, 0, 0);">（++个人注： 大多数</font>`<font style="color:rgb(192, 52, 29);background-color:rgb(251, 229, 225);">matchIndex[i] ≥ N</font>`<font style="color:rgb(0, 0, 0);">说明大多follower上的日志条目及commitIndex值已至少更新至N，并且日志条目中最新term与follower的currentTerm一致，则说明大多数follower日志条目已更新（但未确定是否同步至状态机），则leader将commitIndex偏移至N++）（5.3 和 5.4 节）</font></h4>
+### <font style="color:#080808;background-color:#ffffff;">becomeLeaderToDoThing()</font>
+#### 初始化leader的nextIndex和mtachIndex
+#### <font style="color:rgb(0, 0, 0);">对leader的commitIndex进行调整，找出之前领导者已经提交过的部分。假设存在 N 满足</font>`<font style="color:rgb(192, 52, 29);background-color:rgb(251, 229, 225);">N > commitIndex</font>`<font style="color:rgb(0, 0, 0);">，使得大多数follower的 </font>`<font style="color:rgb(192, 52, 29);background-color:rgb(251, 229, 225);">matchIndex[i] ≥ N</font>`<font style="color:rgb(0, 0, 0);">以及</font>`<font style="color:rgb(192, 52, 29);background-color:rgb(251, 229, 225);">log[N].term == currentTerm</font>`<font style="color:rgb(0, 0, 0);"> 成立，则令 </font>`<font style="color:rgb(192, 52, 29);background-color:rgb(251, 229, 225);">commitIndex = N</font>`<font style="color:rgb(0, 0, 0);">（++个人注： 大多数</font>`<font style="color:rgb(192, 52, 29);background-color:rgb(251, 229, 225);">matchIndex[i] ≥ N</font>`<font style="color:rgb(0, 0, 0);">说明大多follower上的日志条目及commitIndex值已至少更新至N，并且日志条目中最新term与follower的currentTerm一致，则说明大多数follower日志条目已更新（但未确定是否同步至状态机），则leader将commitIndex偏移至N++）（5.3 和 5.4 节）</font>
 
 
-<h1 id="LksYX">心跳</h1>
-<h2 id="APB3T">心跳发起者</h2>
-```java
-/**
-* 心跳
-*/
-class HeartBeatTask implements Runnable {
-
-    @Override
-    public void run() {
-
-        if (status != NodeStatus.LEADER) {
-            return;
-        }
-
-        long current = System.currentTimeMillis();
-        if (current - preHeartBeatTime < heartBeatTick) {
-            return;
-        }
-        log.info("=========== NextIndex =============");
-        for (Peer peer : peerSet.getPeersWithOutSelf()) {
-            log.info("Peer {} nextIndex={}", peer.getAddr(), nextIndexs.get(peer));
-        }
-
-        preHeartBeatTime = System.currentTimeMillis();
-
-        // 心跳只关心 term 和 leaderID
-        for (Peer peer : peerSet.getPeersWithOutSelf()) {
-
-            AentryParam param = AentryParam.builder()
-            .entries(null)// 心跳,空日志.
-            .leaderId(peerSet.getSelf().getAddr())
-            .serverId(peer.getAddr())
-            .term(currentTerm)
-            .leaderCommit(commitIndex) // 心跳时与跟随者同步 commit index
-            .build();
-
-            Request request = new Request(
-                Request.A_ENTRIES,
-                param,
-                peer.getAddr());
-
-            RaftThreadPool.execute(() -> {
-                try {
-                    AentryResult aentryResult = getRpcClient().send(request);
-                    long term = aentryResult.getTerm();
-
-                    if (term > currentTerm) {
-                        log.error("self will become follower, he's term : {}, my term : {}", term, currentTerm);
-                        currentTerm = term;
-                        votedFor = "";
-                        status = NodeStatus.FOLLOWER;
-                    }
-                } catch (Exception e) {
-                    log.error("HeartBeatTask RPC Fail, request URL : {} ", request.getUrl());
-                }
-            }, false);
-        }
-    }
-}
-```
-
-<h2 id="ZhieR">心跳接收者</h2>
+# 心跳
+## 心跳发起者
+## 心跳接收者
 + **<font style="color:rgb(64, 64, 64);">正确实践</font>**<font style="color:rgb(64, 64, 64);">：先按顺序应用所有需提交的日志（从</font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">lastApplied + 1</font>**`<font style="color:rgb(64, 64, 64);">到</font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">commitIndex</font>**`<font style="color:rgb(64, 64, 64);">），再更新</font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">lastApplied</font>**`<font style="color:rgb(64, 64, 64);">至当前</font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">commitIndex</font>**`<font style="color:rgb(64, 64, 64);">。</font>
 + **<font style="color:rgb(64, 64, 64);">性能优化</font>**<font style="color:rgb(64, 64, 64);">：可根据场景选择逐条或批量更新</font>`**<font style="color:rgb(64, 64, 64);background-color:rgb(236, 236, 236);">lastApplied</font>**`<font style="color:rgb(64, 64, 64);">，但必须保证更新的原子性和顺序性。（这里选择批量更新lastApplied，因为本项目注重于raft部分，具体实现做淡化）</font>
 + **<font style="color:rgb(64, 64, 64);">幂等性设计</font>**<font style="color:rgb(64, 64, 64);">：日志应用操作需支持重复执行，防止因崩溃导致的部分应用问题。</font>
 
-```java
-if (param.getEntries() == null || param.getEntries().length == 0) {
-	    return handlerHeartBeatEntry(param);
-}
-private AentryResult handlerHeartBeatEntry (AentryParam param) {
-        LOGGER.info("node {} append heartbeat success , he's term : {}, my term : {}",
-            param.getLeaderId(), param.getTerm(), node.getCurrentTerm());
-
-        // 处理 leader 已提交但未应用到状态机的日志
-        long nextApplied = node.getLastApplied() + 1;
-
-
-        //如果 leaderCommit > commitIndex，令 commitIndex 等于 leaderCommit 和 日志条目最新索引值中较小的一个
-        if (param.getLeaderCommit() > node.getCommitIndex()) {
-            int newCommitIndex = (int) Math.min(param.getLeaderCommit(), node.getLogModule().getLastIndex());
-            node.setCommitIndex(newCommitIndex);
-        }
-        while (nextApplied <= node.getCommitIndex()) {
-            LogEntry entry = node.logModule.read(nextApplied);
-            if (entry != null) {
-                try {
-                    node.stateMachine.apply(entry);
-                    nextApplied++;
-                } catch (Exception e) {
-                    // 应用失败，中止处理，下次重试
-                    break;
-                }
-            } else {
-                // 日志缺失，不能贸然认为应用成功，直接退出
-                break;
-            }
-        }
-        //根据Raft的正确实现，`lastApplied`应该在所有日志成功应用后才更新。
-        //如果应用过程中失败，`lastApplied`仍保持原值，下次会从该值+1继续尝试应用，确保不会遗漏或重复。
-        //所有日志应用完成后更新
-        //(如果失败）只更新已经成功应用的部分
-        node.setLastApplied(nextApplied - 1);
-        return AentryResult.newBuilder().term(node.getCurrentTerm()).success(true).build();
-    }
-```
-
-
-
-<h2 id="bfaf7108">✅ 领导人完整性特性安全性证明的思路</h2>
+## ✅ 领导人完整性特性安全性证明的思路
 我们要 **用反证法** 来证明：
 
 **一旦某条日志条目被提交（即被一个任期的领导人复制到多数派上），那么这条条目将会出现在之后所有任期的领导人日志中。**
 
 ---
 
-<h3 id="d797cf23">🔁 反设</h3>
+### 🔁 反设
 假设这个特性不成立，也就是说：
 
 + 任期 T 的领导人提交了一条日志条目（即大多数节点都复制了它），
@@ -270,8 +161,8 @@ private AentryResult handlerHeartBeatEntry (AentryParam param) {
 
 ---
 
-<h3 id="c1693ade">🧩 基本事实与推理链条</h3>
-<h4 id="9573b16e">① 提交日志条目 => 大多数服务器拥有该日志</h4>
+### 🧩 基本事实与推理链条
+#### ① 提交日志条目 => 大多数服务器拥有该日志
 任期 T 的领导人要“提交”某条日志条目，必须要将该条目复制到多数派节点上。
 
 即：
@@ -286,7 +177,7 @@ mathematica
 
 ---
 
-<h4 id="6454493b">② 任期 U 的领导人赢得选举 => 也获得多数节点的投票</h4>
+#### ② 任期 U 的领导人赢得选举 => 也获得多数节点的投票
 领导人 U 被选上，说明它也获得了大多数节点的选票。
 
 ```plain
@@ -307,7 +198,7 @@ mathematica
 
 ---
 
-<h4 id="48c31c57">③ S3 投票规则（投票人必须日志不落后）</h4>
+#### ③ S3 投票规则（投票人必须日志不落后）
 Raft 协议中有一个关键投票原则：
 
 节点只有在候选人日志“至少一样新”时才会投票给它。
@@ -330,7 +221,7 @@ lastLogTerm 相同但 lastLogIndex ≥ 本地 lastLogIndex
 
 ---
 
-<h4 id="2b8b0f2c">④ Raft 的日志追加特性</h4>
+#### ④ Raft 的日志追加特性
 Raft 规定：
 
 如果两个日志在某个 index 上 term 相同，那么之前的日志一定也一样（日志匹配原则）。
@@ -345,7 +236,7 @@ Raft 规定：
 
 ---
 
-<h4 id="e2ad8faa">⑤ 结论：U 不可能没有该条目</h4>
+#### ⑤ 结论：U 不可能没有该条目
 无论哪种情况推理下去，都得出一个结论：
 
 U 必然应该有来自 T 的那条已提交日志条目。
@@ -362,7 +253,7 @@ U 必然应该有来自 T 的那条已提交日志条目。
 
 ---
 
-<h3 id="tnVcC">✅ 状态机安全性的结论</h3>
+### ✅ 状态机安全性的结论
 上面的证明核心是：
 
 + 一旦某条日志被提交，它就“永不丢失”
@@ -372,14 +263,14 @@ U 必然应该有来自 T 的那条已提交日志条目。
 
 所有服务器的状态机最终都应用**相同顺序的日志条目集合**，从而实现状态一致性（State Machine Safety）。
 
-<h2 id="Fv4Gz">✅ 日志匹配原则的成立是因为 Raft 的日志复制和冲突处理机制</h2>
-<h3 id="26ba7869">🌟 1. 日志是通过领导人（Leader）同步给跟随者（Follower）的</h3>
+## ✅ 日志匹配原则的成立是因为 Raft 的日志复制和冲突处理机制
+### 🌟 1. 日志是通过领导人（Leader）同步给跟随者（Follower）的
 + 当 Leader 向 Follower 发送 `AppendEntries`（附加日志） RPC 时，会带上：
     - `prevLogIndex`: 前一个日志条目的索引
     - `prevLogTerm`: 该条目的任期号
     - `entries[]`: 要追加的新日志条目
 
-<h3 id="7d19c923">🌟 2. 跟随者在接收日志前会做一致性检查：</h3>
+### 🌟 2. 跟随者在接收日志前会做一致性检查：
 + 只有当 Follower 在自己的日志中找到了 `prevLogIndex` 和 `prevLogTerm` 都匹配的日志条目，它才会接受新日志条目并追加；
 + 否则它就会拒绝，Leader 会回退索引重试。
 
@@ -387,7 +278,7 @@ U 必然应该有来自 T 的那条已提交日志条目。
 
 ---
 
-<h3 id="va4kz">🔁 所以日志匹配原则是如何“强制维持”的？</h3>
+### 🔁 所以日志匹配原则是如何“强制维持”的？
 想象一个跟随者的日志与 Leader 不一致：  
 Follower 日志: [1, 2, 3(term=4), 4(term=4)]  
 Leader 日志:   [1, 2, 3(term=3), 4(term=3), 5(term=5)]
@@ -410,15 +301,15 @@ Follower 检查自己第 4 条是 term=4，不匹配，会拒绝。
 
 ---
 
-<h3 id="k4vcw">总结一句话：</h3>
+### 总结一句话：
 **日志匹配原则不是自然推理出来的，而是由 Raft 的日志复制机制和附加日志的严格检查机制“硬性保证”的。**  
 一条日志条目之所以能出现在某个 index 上，必须是前面的所有日志都和 Leader 完全一致。
 
-<h2 id="mNjHC"></h2>
+## 
 
 
-<h1 id="kaBve">日志复制</h1>
-<h2 id="ZcbHJ">日志发起者</h2>
-<h2 id="vX3v6">日志接收者</h2>
+# 日志复制
+## 日志发起者
+## 日志接收者
 
 

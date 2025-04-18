@@ -426,7 +426,7 @@ public class DefaultNode implements Node {
                 .term(currentTerm)
                 .build();
 
-        // 预提交到本地日志, TODO 预提交
+        // 预提交到本地日志
         logModule.write(logEntry);
         log.info("write logModule success, logEntry info : {}, log index : {}", logEntry, logEntry.getIndex());
 
@@ -437,7 +437,6 @@ public class DefaultNode implements Node {
         int count = 0;
         //  复制到其他机器
         for (Peer peer : peerSet.getPeersWithOutSelf()) {
-            // TODO check self and RaftThreadPool
             count++;
             // 并行发起 RPC 复制.
             futureList.add(replication(peer, logEntry));
@@ -579,14 +578,6 @@ public class DefaultNode implements Node {
 
                 } catch (Exception e) {
                     log.warn(e.getMessage(), e);
-                    // TODO 到底要不要放队列重试?
-//                        ReplicationFailModel model =  ReplicationFailModel.newBuilder()
-//                            .callable(this)
-//                            .logEntry(entry)
-//                            .peer(peer)
-//                            .offerTime(System.currentTimeMillis())
-//                            .build();
-//                        replicationFailQueue.offer(model);
                     return false;
                 }
             }

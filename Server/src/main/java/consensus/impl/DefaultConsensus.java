@@ -148,7 +148,7 @@ public class DefaultConsensus implements Consensus {
             }
 
             // 真实日志
-            // 第一次
+            // 第一次校验
             if (node.getLogModule().getLastIndex() != 0 && param.getPrevLogIndex() != 0) {
                 LogEntry logEntry;
                 if ((logEntry = node.getLogModule().read(param.getPrevLogIndex())) != null) {
@@ -180,19 +180,37 @@ public class DefaultConsensus implements Consensus {
                 result.setSuccess(true);
             }
 
-            // 更新commitIndex
-            long newCommitIndex = Math.min(param.getLeaderCommit(), node.getLogModule().getLastIndex());
-            node.setCommitIndex(newCommitIndex);
+            // 处理 leader 已提交但未应用到状态机的日志
+            long nextApplied = node.getLastApplied() + 1;
 
-            // 应用未提交的日志
-            // 这里是逐个更新lastapplyIndex（有个地方是批量更新）
-            for (long i = node.getLastApplied() + 1; i <= node.getCommitIndex(); i++) {
-                LogEntry entry = node.getLogModule().read(i);
-                node.getStateMachine().apply(entry);
-                node.setLastApplied(i); // 逐步更新lastApplied
+
+            //如果 leaderCommit > commitIndex，令 commitIndex 等于 leaderCommit 和 日志条目最新索引值中较小的一个
+            if (param.getLeaderCommit() > node.getCommitIndex()) {
+                int newCommitIndex = (int) Math.min(param.getLeaderCommit(), node.getLogModule().getLastIndex());
+                node.setCommitIndex(newCommitIndex);
             }
-            result.setTerm(node.getCurrentTerm());
+            while (nextApplied <= node.getCommitIndex()) {
+                LogEntry entry = node.logModule.read(nextApplied);
+                if (entry != null) {
+                    try {
+                        node.stateMachine.apply(entry);
+                        nextApplied++;
+                    } catch (Exception e) {
+                        // 应用失败，中止处理，下次重试
+                        break;
+                    }
+                } else {
+                    // 日志缺失，不能贸然认为应用成功，直接退出
+                    break;
+                }
+            }
+            //根据Raft的正确实现，`lastApplied`应该在所有日志成功应用后才更新。
+            //如果应用过程中失败，`lastApplied`仍保持原值，下次会从该值+1继续尝试应用，确保不会遗漏或重复。
+            //所有日志应用完成后更新
+            //(如果失败）只更新已经成功应用的部分
+            node.setLastApplied(nextApplied - 1);
 
+            result.setTerm(node.getCurrentTerm());
             node.status = NodeStatus.FOLLOWER;
             return result;
         } finally {
